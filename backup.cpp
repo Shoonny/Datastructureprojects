@@ -1,0 +1,261 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+
+using namespace std;
+
+typedef struct BitBuffer{
+    unsigned char ch;
+    unsigned int size;
+}BitBuffer;
+
+BitBuffer bitbuffer;
+
+FILE* outfp;
+
+FILE* infp;
+
+
+typedef struct HuffNode{
+     char ID;
+     int weight;
+     HuffNode *rightchd;
+     HuffNode *leftchd;
+}HuffNode;
+
+typedef struct freqUnit{
+    int Appear;
+    char ID;
+}freqUnit;
+
+typedef struct codeUnit{
+    char ID;
+    string code;
+}codeUnit;
+
+int Inhelp(){
+    if(bitbuffer.size == 0){ bitbuffer.ch = fgetc(infp); bitbuffer.size = 8;}
+    int bit = (bitbuffer.ch & 128) >> 7;
+    bitbuffer.ch = bitbuffer.ch << 1;
+    bitbuffer.size --;
+    return bit;
+}
+
+void Outhelp(string dataout){
+    for(int i = 0;i < dataout.size();i ++){
+        if(dataout[i] == '1'){  bitbuffer.size ++; bitbuffer.ch = (bitbuffer.ch << 1) + 1;}
+        if(dataout[i] == '0'){ bitbuffer.size ++; bitbuffer.ch = (bitbuffer.ch << 1) + 0;}
+
+        if(bitbuffer.size == 8){
+            fputc(bitbuffer.ch,outfp);
+            bitbuffer.ch = 0;
+            bitbuffer.size = 0;
+        }
+    }
+}
+
+double GetSize(string addr){
+    FILE *ori = fopen(addr.c_str(),"rb");
+    long prev=ftell(ori);
+    fseek(ori, 0L, SEEK_END);
+    long sz=ftell(ori);
+    fseek(ori,prev,SEEK_SET);
+    return sz;
+}
+
+void BuildingHelp(string tempcode,HuffNode* huffhead,vector<codeUnit> &huffcodes){
+    if(huffhead -> rightchd != nullptr){ BuildingHelp( tempcode + "0",huffhead -> rightchd,huffcodes); }
+    if(huffhead -> leftchd != nullptr){ BuildingHelp(tempcode + "1",huffhead -> leftchd,huffcodes); }
+    else { codeUnit temp;  temp.ID = huffhead -> ID;  temp.code = tempcode; huffcodes.push_back(temp); }
+}
+
+string fileR(ifstream &filein){
+    string instance;
+    filein >> noskipws;
+
+    while(!filein.eof()){
+        char temp = NULL;
+        filein >> temp;
+        if(temp == NULL){  continue;  }
+        instance += temp;
+    }
+    return instance;
+}
+
+void fileOut(string instance,vector<codeUnit> huffcodes){
+    outfp = fopen("f2_result.huf","wb+");
+    bitbuffer.size = 0;
+    bitbuffer.ch = 0;
+    for(int l = 0;l < instance.size();l ++){
+        string dataout;
+        for(int j = 0;j < huffcodes.size(); j ++){  if(huffcodes[j].ID == instance[l]){ dataout = huffcodes[j].code;} }
+        Outhelp(dataout);
+    }
+    if(bitbuffer.size != 0){
+        for(int p = bitbuffer.size;p < 8;p ++){
+            Outhelp("0");
+        }
+    }
+    fclose(outfp);
+    cout << "文件写入完成 保存在与可执行文件同级的文件夹下" << endl;
+}
+
+vector<HuffNode*> SeqCensus(string instance){
+    vector<freqUnit> freq;
+    freqUnit temp;
+    temp.Appear = 1;
+    temp.ID = instance[0];
+    freq.push_back(temp);
+    bool isfound;
+    for(int i = 1;i < instance.size();i ++){
+        isfound = false;
+        for(int o = 0;o < freq.size();o ++){
+            if(instance[i] == freq[o].ID){ freq[o].Appear ++;  isfound = true; break;}
+        }
+        if(!isfound){
+            freqUnit temp2;
+            temp2.Appear = 1;
+            temp2.ID = instance[i];
+            freq.push_back(temp2);
+
+        }
+    }
+
+    vector<HuffNode*> forest;
+    for(int k = 0;k < freq.size();k ++){
+        HuffNode* tempNode = (HuffNode*)malloc(sizeof(HuffNode));
+        tempNode -> ID = freq[k].ID;
+        tempNode -> weight = freq[k].Appear;
+        tempNode -> rightchd = nullptr;
+        tempNode -> leftchd = nullptr;
+        forest.push_back(tempNode);
+        if(freq[k].ID == '\n'){cout << "字符" << "\'\\n\'" << "的频数为" << freq[k].Appear << endl; continue;}
+        cout << "字符" << '\''<<freq[k].ID << '\''<< "的频数为" << freq[k].Appear << endl;
+    }
+    return forest;
+}
+
+HuffNode* HuffBuilding(vector<HuffNode*> forest){
+    HuffNode *temp1;
+    HuffNode *temp2;
+    while(forest.size() != 1){
+        HuffNode *smallest = forest[0];
+        vector<HuffNode*>::iterator it1 = forest.begin();
+        for(int i = 0;i < forest.size(); i ++){ if(forest[i] -> weight < smallest -> weight){ smallest = forest[i]; it1 = forest.begin(); it1 += i; } }
+        temp1 = smallest;
+        forest.erase(it1);
+        smallest = forest[0];
+        it1 = forest.begin();
+        for (int j = 0; j < forest.size(); ++j) { if(forest[j] -> weight < smallest -> weight){ smallest = forest[j]; it1 = forest.begin(); it1 += j;  } }
+        temp2 = smallest;
+        forest.erase(it1);
+        HuffNode *temphead = (HuffNode*)malloc(sizeof(HuffNode));
+        temphead -> weight = temp1 -> weight + temp2 -> weight;
+        temphead -> ID = NULL;
+        temphead -> leftchd = temp1;
+        temphead -> rightchd = temp2;
+        forest.push_back(temphead);
+    }
+    return forest[0];
+}
+
+void Decoding(string textaddr,string hufaddr){
+    vector<HuffNode*> SeqIn;
+    ifstream codein;
+    codein.open(textaddr);
+
+    while(!codein.eof()){
+        HuffNode* tempunit = (HuffNode*)malloc(sizeof(HuffNode));
+        codein >> tempunit -> ID;
+        codein >> tempunit -> weight;
+        if(tempunit -> weight == 0){   break;  }
+        tempunit -> rightchd = nullptr;
+        tempunit -> leftchd = nullptr;
+        SeqIn.push_back(tempunit);
+    }
+    codein.close();
+    HuffNode* newhead = HuffBuilding(SeqIn);
+    HuffNode* fixhead = newhead;
+     int  actsize = newhead -> weight;
+    infp = fopen(hufaddr.c_str(),"rb");
+    while(actsize != 0){
+        int path = Inhelp();
+        if( path == 1){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){cout << newhead -> ID; newhead = fixhead;  actsize --;}  continue;}
+        if( path == 0){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){cout << newhead -> ID; newhead = fixhead;  actsize --;}  continue;}
+    }
+    cout << endl;
+    cout << "**************************************************************" << endl;
+    cout << "解码完成" << endl;
+
+
+
+}
+
+void Coding(string addr){
+    ifstream filein;
+    filein.open(addr);
+    string instance = fileR(filein);
+    filein.close();
+    if(instance.empty()){  cout << "输入文件为空" << endl; return ; }
+    HuffNode *huffhead = HuffBuilding(SeqCensus(instance));
+    vector<codeUnit> huffcodes;
+    string temp;
+    BuildingHelp(temp,huffhead,huffcodes);
+    cout << "下面是字符的编码情况" << endl;
+    cout << "**************************************************************" << endl;
+    for(int k = 0;k < huffcodes.size();k ++){
+        if(huffcodes[k].ID == '\n'){cout << "字符" << "\'"<<"\\n" << "\'" << "的编码为" << huffcodes[k].code << endl; continue;}
+        cout << "字符" << "\'"<<huffcodes[k].ID << "\'" << "的编码为" << huffcodes[k].code << endl;
+    }
+    cout << "**************************************************************" << endl;
+
+
+    ofstream codeout;
+    codeout.open("f2_code.txt");
+    vector<HuffNode*> forout = SeqCensus(instance);
+    for(int k = 0;k < forout.size();k ++){ codeout << forout[k] -> ID << forout[k] -> weight << endl;}
+    codeout.close();
+
+    fileOut(instance,huffcodes);
+
+    cout << "文件压缩前大小为:" << GetSize(addr) << "字节" << endl;
+    cout << "文件压缩后的大小为:" << GetSize("f2_result.huf") << "字节" << endl;
+    cout << "文件压缩率为" << (1.0 - GetSize("f2_result.huf")/GetSize(addr)) * 100 << "%" << endl;
+}
+
+int main(){
+    while(true) {
+        cout << "**************************************************************" << endl;
+        cout << "*********************霍夫曼编码树简单压缩程序*********************" << endl;
+        cout << "**************************************************************" << endl;
+        cout << "1.进行霍夫曼编码  2.进行霍夫曼码译码  3.退出" << endl;
+        int choice;
+        cin >> choice;
+        switch (choice) {
+            case 1: {
+                cout << "请输入待编码文件的绝对地址:";
+                string addr;
+                cin >> addr;
+                cout << "**************************************************************" << endl;
+                Coding(addr);
+                break;
+            }
+            case 2: {
+                cout << "请输入被编码包含字符编码的文件绝对地址:";
+                string textaddr;
+                cin >> textaddr;
+                cout << "请输入编码后的.huf文件绝对地址:";
+                string hufaddr;
+                cin >> hufaddr;
+                cout << "**************************************************************" << endl;
+                Decoding(textaddr, hufaddr);
+                break;
+            }
+            case 3:
+                return 0;
+            default:
+                cout << "请输入正确选项" << endl;
+                break;
+        }
+    }
+}
