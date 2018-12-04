@@ -9,13 +9,6 @@ typedef struct BitBuffer{
     unsigned int size;
 }BitBuffer;
 
-BitBuffer bitbuffer;
-
-FILE* outfp;
-
-FILE* infp;
-
-
 typedef struct HuffNode{
      char ID;
      int weight;
@@ -32,6 +25,14 @@ typedef struct codeUnit{
     char ID;
     string code;
 }codeUnit;
+
+BitBuffer bitbuffer;
+
+FILE* outfp;
+
+FILE* infp;
+
+HuffNode* mainhead;
 
 int Inhelp(){
     if(bitbuffer.size == 0){ bitbuffer.ch = fgetc(infp); bitbuffer.size = 8;}
@@ -64,8 +65,8 @@ double GetSize(string addr){
 }
 
 void BuildingHelp(string tempcode,HuffNode* huffhead,vector<codeUnit> &huffcodes){
-    if(huffhead -> rightchd != nullptr){ BuildingHelp( tempcode + "0",huffhead -> rightchd,huffcodes); }
-    if(huffhead -> leftchd != nullptr){ BuildingHelp(tempcode + "1",huffhead -> leftchd,huffcodes); }
+    if(huffhead -> rightchd != nullptr){ BuildingHelp( tempcode + "1",huffhead -> rightchd,huffcodes); }
+    if(huffhead -> leftchd != nullptr){ BuildingHelp(tempcode + "0",huffhead -> leftchd,huffcodes); }
     else { codeUnit temp;  temp.ID = huffhead -> ID;  temp.code = tempcode; huffcodes.push_back(temp); }
 }
 
@@ -159,29 +160,17 @@ HuffNode* HuffBuilding(vector<HuffNode*> forest){
     return forest[0];
 }
 
-void Decoding(string textaddr,string hufaddr){
-    vector<HuffNode*> SeqIn;
-    ifstream codein;
-    codein.open(textaddr);
-
-    while(!codein.eof()){
-        HuffNode* tempunit = (HuffNode*)malloc(sizeof(HuffNode));
-        codein >> tempunit -> ID;
-        codein >> tempunit -> weight;
-        if(tempunit -> weight == 0){   break;  }
-        tempunit -> rightchd = nullptr;
-        tempunit -> leftchd = nullptr;
-        SeqIn.push_back(tempunit);
-    }
-    codein.close();
-    HuffNode* newhead = HuffBuilding(SeqIn);
+void Decoding(string hufaddr){
+    HuffNode* newhead = mainhead;
     HuffNode* fixhead = newhead;
      int  actsize = newhead -> weight;
     infp = fopen(hufaddr.c_str(),"rb");
+    ofstream outfile;
+    outfile.open("/Users/zhuyuanhao/Downloads/result.txt");
     while(actsize != 0){
         int path = Inhelp();
-        if( path == 1){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){cout << newhead -> ID; newhead = fixhead;  actsize --;}  continue;}
-        if( path == 0){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){cout << newhead -> ID; newhead = fixhead;  actsize --;}  continue;}
+        if( path == 0){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  actsize --;}  continue;}
+        if( path == 1){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  actsize --;}  continue;}
     }
     cout << endl;
     cout << "**************************************************************" << endl;
@@ -198,6 +187,7 @@ void Coding(string addr){
     filein.close();
     if(instance.empty()){  cout << "输入文件为空" << endl; return ; }
     HuffNode *huffhead = HuffBuilding(SeqCensus(instance));
+    mainhead = huffhead;
     vector<codeUnit> huffcodes;
     string temp;
     BuildingHelp(temp,huffhead,huffcodes);
@@ -209,12 +199,6 @@ void Coding(string addr){
     }
     cout << "**************************************************************" << endl;
 
-
-    ofstream codeout;
-    codeout.open("f2_code.txt");
-    vector<HuffNode*> forout = SeqCensus(instance);
-    for(int k = 0;k < forout.size();k ++){ codeout << forout[k] -> ID << forout[k] -> weight << endl;}
-    codeout.close();
 
     fileOut(instance,huffcodes);
 
@@ -228,6 +212,7 @@ int main(){
         cout << "**************************************************************" << endl;
         cout << "*********************霍夫曼编码树简单压缩程序*********************" << endl;
         cout << "**************************************************************" << endl;
+        cout << "************************务必首先进行1号操作**********************" << endl;
         cout << "1.进行霍夫曼编码  2.进行霍夫曼码译码  3.退出" << endl;
         int choice;
         cin >> choice;
@@ -241,14 +226,11 @@ int main(){
                 break;
             }
             case 2: {
-                cout << "请输入被编码包含字符编码的文件绝对地址:";
-                string textaddr;
-                cin >> textaddr;
                 cout << "请输入编码后的.huf文件绝对地址:";
                 string hufaddr;
                 cin >> hufaddr;
                 cout << "**************************************************************" << endl;
-                Decoding(textaddr, hufaddr);
+                Decoding(hufaddr);
                 break;
             }
             case 3:
