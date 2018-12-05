@@ -3,8 +3,8 @@
 #include <list>
 #include <sstream>
 #include <stack>
-using namespace std;
 
+using namespace std;
 
 string mtosting(list<string> &text,int strap,bool isdel){
     list<string>::iterator iterator1;
@@ -14,7 +14,7 @@ string mtosting(list<string> &text,int strap,bool isdel){
     for(int i = strap;i < text.size();i ++){ out += *(iterator1); iterator1 ++;}
     iterator1 = text.end();
     if(isdel){
-       for(int i = text.size() - 1;i >= strap;i --){ text.pop_back();}
+        for(int i = text.size() - 1;i >= strap;i --){ text.pop_back();}
     }
     return out;
 
@@ -28,7 +28,7 @@ list<string> mtolist(string text){
     char Par;
     int k = text.size();
     while(true){
-       if(k == 0){   return out;  }
+        if(k == 0){   return out;  }
         temp = "";
         for(int i = 0;i < 80;i ++){
             if(k <= 0){   break;  }
@@ -95,8 +95,8 @@ void insert(list<string> &text){
 
     string input;
     cout << "现在输入要插入的字符串" << endl;
-    cin >> input;
-
+    getline(cin,input);
+    getline(cin,input);
     string process = mtosting(text,inrow, true);
     process.insert(incol ,input);
     list<string>:: iterator it;
@@ -133,14 +133,13 @@ bool Search(list<string> &text,string input){
                 }
                 if((*substi)[(subi + o) - strapback] != input[o]){
                     found = false;
-                    cout << "mismatch at" << subi + o << endl;
                     break;
                 }
             }
             if(found){
                 cout << "找到了输入的字符串"<< "位于"
-                << distance(text.begin(),it) <<"行"
-                << subi <<"列"<< endl;
+                     << distance(text.begin(),it) <<"行"
+                     << subi <<"列"<< endl;
                 notfound = true;
             }
         }
@@ -216,7 +215,7 @@ int main() {
     cout << "请输入文件所在的绝对路径" << endl;
     string Address;
     cin >> Address;
-	
+
     filein.open(Address);
     filein >> noskipws;
     text = fileR(filein);
