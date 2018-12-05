@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <queue>
 
 using namespace std;
 
@@ -83,19 +84,47 @@ string fileR(ifstream &filein){
     return instance;
 }
 
+void Attentioner(int source){
+
+    unsigned char blaze = 0;
+    queue<int> Bseq;
+    cout << source << endl;
+
+    while(source != 0){
+        int i = source / 2;
+        int left = source % 2;
+        Bseq.push(left);
+        source = i;
+    }
+    while(!Bseq.empty()){
+        int temp = Bseq.front();
+        if(temp == 1){blaze = (blaze << 1) + 1;}
+        if(temp == 0){blaze = blaze << 1;}
+        Bseq.pop();
+    }
+    fputc(blaze,outfp);
+
+}
+
 void fileOut(string instance,vector<codeUnit> huffcodes){
     outfp = fopen("f2_result.huf","wb+");
     bitbuffer.size = 0;
     bitbuffer.ch = 0;
+    string dataout;
     for(int l = 0;l < instance.size();l ++){
-        string dataout;
         for(int j = 0;j < huffcodes.size(); j ++){  if(huffcodes[j].ID == instance[l]){ dataout = huffcodes[j].code;} }
+        if(l == instance.size() - 1){  break; }
         Outhelp(dataout);
-    }
+    }//如果要求缓存区满8位也要补八位进文件最后一个字符先不要写进去
     if(bitbuffer.size != 0){
+        Attentioner(bitbuffer.size);
         for(int p = bitbuffer.size;p < 8;p ++){
             Outhelp("0");
         }
+    }
+    else{
+        Attentioner(0);
+        Outhelp(dataout);
     }
     fclose(outfp);
     cout << "文件写入完成 保存在与可执行文件同级的文件夹下" << endl;
@@ -163,21 +192,29 @@ HuffNode* HuffBuilding(vector<HuffNode*> forest){
 void Decoding(string hufaddr){
     HuffNode* newhead = mainhead;
     HuffNode* fixhead = newhead;
-     int  actsize = newhead -> weight;
+     int  actsize = (int)GetSize(hufaddr) - 2;
     infp = fopen(hufaddr.c_str(),"rb");
     ofstream outfile;
     outfile.open("/Users/zhuyuanhao/Downloads/result.txt");
-    while(actsize != 0){
+    for(int k = 0;k < actsize * 8;k ++){
         int path = Inhelp();
-        if( path == 0){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  actsize --;}  continue;}
-        if( path == 1){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  actsize --;}  continue;}
+        if( path == 0){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  }  continue;}
+        if( path == 1){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  }  continue;}
     }
+    int getValid = fgetc(infp);
+    bitbuffer.ch = 0;
+    bitbuffer.size = 0;
+
+    for(int o = 0;o < getValid;o ++){
+        int path = Inhelp();
+        if( path == 0){  newhead = newhead -> leftchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  }  continue;}
+        if( path == 1){  newhead = newhead -> rightchd; if(newhead -> ID != NULL){if(newhead -> ID == '\r'){cout << endl; outfile << endl;}cout << newhead -> ID; outfile << newhead -> ID;newhead = fixhead;  }  continue;}
+
+    }
+
     cout << endl;
     cout << "**************************************************************" << endl;
     cout << "解码完成" << endl;
-
-
-
 }
 
 void Coding(string addr){
